@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>同期タイマー (ビューア)</title>
+  <link rel="stylesheet" href="viewer.css">
+  <style>
+    #message-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      height: 100%;
+      color: #333;
+      background-color: #f0f0f0;
+      font-family: sans-serif;
+      text-align: center;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <div id="timer-container" style="display: none;">
+    <div id="title"></div>
+    <div id="timer"></div>
+    <div id="progress-container">
+      <div id="progress-bar"></div>
+    </div>
+  </div>
+  <div id="message-container">
+    <p>タイマーデータを待っています...</p>
+  </div>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js"></script>
+  <!-- Main script -->
+  <script src="viewer.js"></script>
+</body>
+</html>
