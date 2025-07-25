@@ -1,3 +1,7 @@
+// ★★★ 変更点: v9モジュラーSDKの関数をインポート ★★★
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
+
 document.addEventListener('DOMContentLoaded', () => {
     // UI要素
     const timerContainer = document.getElementById('timer-container');
@@ -38,6 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const endIndex = parsedConfigStr.lastIndexOf('}');
         if (startIndex === -1 || endIndex === -1) throw new Error("Config format error");
         parsedConfigStr = parsedConfigStr.substring(startIndex, endIndex + 1);
+        
         parsedConfigStr = parsedConfigStr.replace(/\s/g, ' ');
         parsedConfigStr = parsedConfigStr.replace(/([{, ])([a-zA-Z0-9_]+)( *:[^/])/g, '$1"$2"$3');
         parsedConfigStr = parsedConfigStr.replace(/'/g, '"');
@@ -45,13 +50,13 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const firebaseConfig = JSON.parse(parsedConfigStr);
 
-        // Firebaseを初期化
-        const app = firebase.initializeApp(firebaseConfig);
-        const db = firebase.database(app);
-        const dbRef = firebase.database().ref('timers/' + sessionId);
+        // ★★★ 変更点: v9モジュラースタイルでFirebaseを初期化 ★★★
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const dbRef = ref(db, 'timers/' + sessionId);
 
-        // データ変更を監視
-        dbRef.on('value', (snapshot) => {
+        // ★★★ 変更点: v9モジュラースタイルでデータ変更を監視 ★★★
+        onValue(dbRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
                 latestData = data;
@@ -70,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     } catch (e) {
         console.error("初期化に失敗しました:", e);
-        showMessage('初期化に失敗しました。URLの形式を確認してください。');
+        showMessage(`初期化に失敗しました。URLの形式を確認してください。(Error: ${e.message})`);
         return;
     }
 
