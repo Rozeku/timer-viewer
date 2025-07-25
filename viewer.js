@@ -49,8 +49,8 @@ document.addEventListener('DOMContentLoaded', () => {
         parsedConfigStr = parsedConfigStr.replace(/([{, ])([a-zA-Z0-9_]+)( *:[^/])/g, '$1"$2"$3');
         // シングルクォートをダブルクォートに変換
         parsedConfigStr = parsedConfigStr.replace(/'/g, '"');
-        // 値の後のカンマが抜けている場合に追加する
-        parsedConfigStr = parsedConfigStr.replace(/""/g, '","');
+        // ★★★ 修正点: 値の間の抜けているカンマを正しく追加する ★★★
+        parsedConfigStr = parsedConfigStr.replace(/"\s*"/g, '","');
         // 末尾の余分なカンマを削除
         parsedConfigStr = parsedConfigStr.replace(/, *}/g, ' }');
         
