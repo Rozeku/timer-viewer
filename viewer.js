@@ -36,16 +36,22 @@ document.addEventListener('DOMContentLoaded', () => {
         // Base64デコードして設定情報を復元
         const configStr = atob(encodedConfig);
         
-        // background.jsと同様のロジックで設定をパース
+        // ★★★ 変更点: より堅牢な方法で設定文字列を解析する ★★★
         let parsedConfigStr = configStr.replace(/\/\/.*$/gm, '');
         const startIndex = parsedConfigStr.indexOf('{');
         const endIndex = parsedConfigStr.lastIndexOf('}');
         if (startIndex === -1 || endIndex === -1) throw new Error("Config format error");
         parsedConfigStr = parsedConfigStr.substring(startIndex, endIndex + 1);
         
+        // あらゆる種類の空白文字を標準のスペースに統一
         parsedConfigStr = parsedConfigStr.replace(/\s/g, ' ');
+        // クォートされていないキーをダブルクォートで囲む
         parsedConfigStr = parsedConfigStr.replace(/([{, ])([a-zA-Z0-9_]+)( *:[^/])/g, '$1"$2"$3');
+        // シングルクォートをダブルクォートに変換
         parsedConfigStr = parsedConfigStr.replace(/'/g, '"');
+        // 値の後のカンマが抜けている場合に追加する
+        parsedConfigStr = parsedConfigStr.replace(/""/g, '","');
+        // 末尾の余分なカンマを削除
         parsedConfigStr = parsedConfigStr.replace(/, *}/g, ' }');
         
         const firebaseConfig = JSON.parse(parsedConfigStr);
