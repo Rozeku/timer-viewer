@@ -2,6 +2,22 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
 import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
 
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+// ★ 開発者様へ: ご自身のFirebaseプロジェクトの設定情報に書き換えてください ★
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+const firebaseConfig = {
+  // ユーザーから提供されたFirebaseプロジェクト設定
+  apiKey: "AIzaSyB1Cht_x003ZMPdZQRBddjnP2dbqWLbKPM",
+  authDomain: "mobi-69fb2.firebaseapp.com",
+  databaseURL: "https://mobi-69fb2-default-rtdb.firebaseio.com",
+  projectId: "mobi-69fb2",
+  storageBucket: "mobi-69fb2.appspot.com",
+  messagingSenderId: "595370829334",
+  appId: "1:595370829334:web:5af14c31b140e9328af737",
+  measurementId: "G-Q8T5QB54WQ"
+};
+
+
 // --- DOM要素の取得 ---
 const timerDisplay = document.getElementById('timer');
 const titleDisplay = document.getElementById('title');
@@ -18,31 +34,15 @@ let animationFrameId = null; // アニメーションフレームID
 function initialize() {
     const urlParams = new URLSearchParams(window.location.search);
     const sessionId = urlParams.get('id');
-    const encodedConfig = urlParams.get('config');
 
-    if (!sessionId || !encodedConfig) {
-        displayError("URLパラメータが不足しています。OBS用のURLを再生成してください。");
+    // URLからconfigパラメータを削除し、sessionIdのみを必須とする
+    if (!sessionId) {
+        displayError("連携IDがURLに含まれていません。OBS用のURLを再生成してください。");
         return;
     }
 
     try {
-        // Base64デコードしてFirebase設定を復元
-        const firebaseConfigStr = atob(encodedConfig);
-        
-        // 安全にJSONをパースするための前処理
-        let configStr = firebaseConfigStr;
-        const startIndex = configStr.indexOf('{');
-        const endIndex = configStr.lastIndexOf('}');
-        if (startIndex === -1 || endIndex === -1) throw new Error("Invalid config format");
-        configStr = configStr.substring(startIndex, endIndex + 1);
-        configStr = configStr.replace(/\s/g, ' ');
-        configStr = configStr.replace(/([{, ])([a-zA-Z0-9_]+)( *:[^/])/g, '$1"$2"$3');
-        configStr = configStr.replace(/'/g, '"');
-        configStr = configStr.replace(/, *}/g, ' }');
-
-        const firebaseConfig = JSON.parse(configStr);
-
-        // Firebaseを初期化
+        // ハードコードされた設定でFirebaseを初期化
         const firebaseApp = initializeApp(firebaseConfig);
         const db = getDatabase(firebaseApp);
         const dbRef = ref(db, `timers/${sessionId}`);
@@ -56,7 +56,6 @@ function initialize() {
                     applySettings(data.designSettings);
                 }
             } else {
-                // データがnullの場合（拡張機能が閉じられたなど）
                 latestData = null;
                 displayError("拡張機能との接続が切れました。");
             }
@@ -66,7 +65,7 @@ function initialize() {
         animationLoop();
 
     } catch (e) {
-        console.error("Firebaseの初期化または設定の解析に失敗しました。", e);
+        console.error("Firebaseの初期化に失敗しました。", e);
         displayError("Firebaseの初期化に失敗しました。設定を確認してください。");
     }
 }
@@ -100,7 +99,7 @@ function applySettings(settings) {
     progressContainer.style.height = `${settings.progressBarHeight}px`;
 }
 
-// 時間をフォーマットする関数 (timer.jsから移植)
+// 時間をフォーマットする関数
 function formatTime(totalSeconds, duration) {
     const isNegative = totalSeconds < 0;
     let displaySeconds = totalSeconds;
@@ -135,7 +134,7 @@ function formatTime(totalSeconds, duration) {
     return timeString;
 }
 
-// 色を補間する関数 (timer.jsから移植)
+// 色を補間する関数
 function interpolateColor(color1, color2, factor) {
     factor = Math.max(0, Math.min(1, factor));
     const r1 = parseInt(color1.substring(1, 3), 16);
