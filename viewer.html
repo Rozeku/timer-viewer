@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>同期タイマー (ビューア)</title>
+  <!-- viewer.css を読み込みます -->
+  <link rel="stylesheet" href="viewer.css">
+  <!-- Firebase SDK をインポートします -->
+  <script type="module" src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js"></script>
+  <script type="module" src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js"></script>
+</head>
+<body>
+  <!-- タイマー表示エリア -->
+  <div id="timer-container">
+    <div id="title">接続待機中...</div>
+    <div id="timer">--:--:--</div>
+    <div id="progress-container">
+      <div id="progress-bar"></div>
+    </div>
+  </div>
+  <!-- viewer.js を読み込みます -->
+  <script type="module" src="viewer.js"></script>
+</body>
+</html>
