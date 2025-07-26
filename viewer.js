@@ -3,7 +3,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebas
 import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
 
 // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-// ★ 開発者様へ: このFirebaseプロジェクト設定は変更しないでください ★
+// ★ 開発者様へ: ご自身のFirebaseプロジェクトの設定情報に書き換えてください ★
 // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
 const firebaseConfig = {
   // ユーザーから提供されたFirebaseプロジェクト設定
@@ -35,16 +35,19 @@ function initialize() {
     const urlParams = new URLSearchParams(window.location.search);
     const sessionId = urlParams.get('id');
 
+    // URLからconfigパラメータを削除し、sessionIdのみを必須とする
     if (!sessionId) {
         displayError("連携IDがURLに含まれていません。OBS用のURLを再生成してください。");
         return;
     }
 
     try {
+        // ハードコードされた設定でFirebaseを初期化
         const firebaseApp = initializeApp(firebaseConfig);
         const db = getDatabase(firebaseApp);
         const dbRef = ref(db, `timers/${sessionId}`);
 
+        // データの変更をリッスン
         onValue(dbRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
@@ -58,6 +61,7 @@ function initialize() {
             }
         });
 
+        // アニメーションループを開始
         animationLoop();
 
     } catch (e) {
@@ -74,7 +78,6 @@ function displayError(message) {
     progressContainer.style.display = "none";
     if (animationFrameId) {
         cancelAnimationFrame(animationFrameId);
-        animationFrameId = null;
     }
 }
 
@@ -88,7 +91,6 @@ function applySettings(settings) {
     titleDisplay.style.fontSize = `${settings.titleSize}px`;
     timerDisplay.style.fontFamily = settings.timerFont;
     timerDisplay.style.fontWeight = settings.timerWeight;
-    // タイマーの色はupdateDisplayで動的に設定するため、ここでは基本色のみ設定
     timerDisplay.style.color = settings.timerColor;
     timerDisplay.style.fontSize = `${settings.timerSize}px`;
     const shadow = settings.shadowVisible ? `2px 2px ${settings.shadowBlur}px ${settings.shadowColor}` : 'none';
@@ -147,74 +149,48 @@ function interpolateColor(color1, color2, factor) {
     return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 }
 
-// ★★★ 変更なし: このロジックはFirebaseからのデータに基づいて表示を更新するため、そのままで正常に動作します ★★★
+// 表示を更新するメインの関数
 function updateDisplay() {
-    if (!latestData || !latestData.videoState || !currentSettings.timerFormat) {
-        if (!latestData && animationFrameId) {
-             displayError("拡張機能との接続が切れました。");
-        }
+    if (!latestData || !latestData.videoState || !currentSettings) {
         return;
     }
 
     const { videoState } = latestData;
-    const { 
-        duration = 0, 
-        isAd = false, 
-        adRemainingTime = 0, 
-        isPlaying = false, 
-        lastUpdated = 0, 
-        currentTime = 0, 
-        title = 'タイトル取得中...',
-        isCountingDown = false,
-        countdownEndTime = 0
-    } = videoState;
-
+    const { duration, isAd, adRemainingTime, isPlaying, lastUpdated, currentTime, title } = videoState;
+    
+    // 時間の補間
+    const elapsedTime = isPlaying ? (Date.now() - lastUpdated) / 1000 : 0;
     let displayTime;
-    let progressTime = 0;
+    let progressTime;
 
-    if (isCountingDown && countdownEndTime > Date.now()) {
-        const remainingSeconds = (countdownEndTime - Date.now()) / 1000;
-        displayTime = -remainingSeconds;
-        progressTime = 0;
-    } 
-    else {
-        const elapsedTime = isPlaying ? (Date.now() - lastUpdated) / 1000 : 0;
-        if (isAd) {
-            displayTime = -(adRemainingTime - elapsedTime);
-            progressTime = currentTime + elapsedTime;
-        } else {
-            displayTime = currentTime + elapsedTime;
-            progressTime = displayTime;
-        }
+    if (isAd) {
+        displayTime = -(adRemainingTime - elapsedTime);
+        progressTime = currentTime + elapsedTime;
+    } else {
+        displayTime = currentTime + elapsedTime;
+        progressTime = displayTime;
     }
 
+    // オフセット適用
     if (displayTime >= 0 && !isAd) {
         const offset = parseFloat(currentSettings.timerOffset) || 0;
         displayTime += offset;
         progressTime += offset;
     }
 
+    // UI更新
     titleDisplay.style.display = currentSettings.titleVisible ? 'block' : 'none';
-    titleDisplay.textContent = title;
-
-    const isEffectivelyCountingDown = displayTime < 0;
-    if (isAd) {
-        timerDisplay.style.color = currentSettings.adTimerColor;
-    } else {
-        timerDisplay.style.color = isEffectivelyCountingDown ? currentSettings.countdownColor : currentSettings.timerColor;
-    }
-
+    titleDisplay.textContent = title || 'タイトルなし';
+    
+    timerDisplay.style.color = displayTime < 0 ? currentSettings.countdownColor : (isAd ? currentSettings.adTimerColor : currentSettings.timerColor);
     timerDisplay.textContent = formatTime(displayTime, duration);
 
+    // プログレスバー更新
     const showProgressBar = currentSettings.progressBarVisible;
     progressContainer.style.display = showProgressBar ? 'block' : 'none';
-
     if (showProgressBar) {
         const isAmazonAd = isAd && videoState.source && videoState.source.includes('amazon');
-        const progress = isAmazonAd
-            ? 100
-            : (duration > 0 && progressTime >= 0) ? Math.min((progressTime / duration) * 100, 100) : 0;
-        
+        const progress = isAmazonAd ? 100 : (duration > 0 && progressTime >= 0) ? Math.min((progressTime / duration) * 100, 100) : 0;
         progressBar.style.width = `${progress}%`;
 
         progressBar.style.backgroundColor = '';
@@ -224,9 +200,8 @@ function updateDisplay() {
         if (currentSettings.rainbowEffect) {
             progressBar.classList.add('rainbow-animate');
         } else if (currentSettings.gradientEnabled && progressTime >= 0) {
-            const progressFactor = duration > 0 ? progressTime / duration : 0;
-            const newColor = interpolateColor(currentSettings.progressBarColor, currentSettings.gradientEndColor, progressFactor);
-            progressBar.style.backgroundColor = newColor;
+            const progressFactor = progressTime / duration;
+            progressBar.style.backgroundColor = interpolateColor(currentSettings.progressBarColor, currentSettings.gradientEndColor, progressFactor);
         } else {
             progressBar.style.backgroundColor = currentSettings.progressBarColor;
         }
