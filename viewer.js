@@ -37,7 +37,7 @@ function initialize() {
 
     // URLからconfigパラメータを削除し、sessionIdのみを必須とする
     if (!sessionId) {
-        displayError("連携IDがURLに含まれていません。OBS用のURLを再生成してください。", null, null);
+        displayError("連携IDがURLに含まれていません。OBS用のURLを再生成してください。");
         return;
     }
 
@@ -56,14 +56,8 @@ function initialize() {
                     applySettings(data.designSettings);
                 }
             } else {
-                // ★★★ 変更点: 接続が切れた場合、以前のタイトルと時間を表示する ★★★
-                if (latestData && latestData.videoState) {
-                    const { lastKnownTitle, lastKnownTime, duration } = latestData.videoState;
-                    displayError("拡張機能との接続が切れました。", lastKnownTitle, lastKnownTime, duration);
-                } else {
-                    displayError("拡張機能との接続が切れました。", null, null);
-                }
-                latestData = null; // データをクリア
+                latestData = null;
+                displayError("拡張機能との接続が切れました。");
             }
         });
 
@@ -72,16 +66,15 @@ function initialize() {
 
     } catch (e) {
         console.error("Firebaseの初期化に失敗しました。", e);
-        displayError("Firebaseの初期化に失敗しました。設定を確認してください。", null, null);
+        displayError("Firebaseの初期化に失敗しました。設定を確認してください。");
     }
 }
 
 // エラーメッセージを表示する関数
-// ★★★ 変更点: 以前のタイトルと時間を表示するための引数を追加 ★★★
-function displayError(message, lastTitle = null, lastTime = null, duration = 0) {
-    titleDisplay.textContent = lastTitle || "エラー";
-    timerDisplay.textContent = lastTime !== null ? formatTime(lastTime, duration) : message;
-    timerDisplay.style.fontSize = lastTime !== null ? currentSettings.timerSize + 'px' : "20px"; // 以前の時間を表示する場合は元のフォントサイズに戻す
+function displayError(message) {
+    titleDisplay.textContent = "エラー";
+    timerDisplay.textContent = message;
+    timerDisplay.style.fontSize = "20px";
     progressContainer.style.display = "none";
     if (animationFrameId) {
         cancelAnimationFrame(animationFrameId);
