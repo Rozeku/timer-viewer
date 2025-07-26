@@ -30,6 +30,9 @@ let latestData = null; // Firebaseから取得した最新のデータ
 let currentSettings = {}; // 現在適用されているデザイン設定
 let animationFrameId = null; // アニメーションフレームID
 
+// 広告再生中の状態を管理するフラグ (viewer.jsに追加)
+let adBreakInProgress = false; 
+
 // --- 初期化処理 ---
 function initialize() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -51,6 +54,20 @@ function initialize() {
         onValue(dbRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
+                // --- 広告再生状態の管理ロジック (viewer.jsに追加) ---
+                // 広告が始まったか、続いているか
+                if (data.videoState && data.videoState.isAd) {
+                    adBreakInProgress = true;
+                } 
+                // 広告が終わったか
+                else if (data.videoState && !data.videoState.isAd && adBreakInProgress) {
+                    adBreakInProgress = false;
+                    // 広告が終わった直後は、本編の正しい時間から再開するために
+                    // 最後の更新時間(lastUpdated)を現在時刻にリセットする
+                    data.videoState.lastUpdated = Date.now();
+                }
+                // --- 広告再生状態の管理ロジックここまで ---
+
                 latestData = data;
                 if (data.designSettings) {
                     applySettings(data.designSettings);
@@ -163,7 +180,27 @@ function updateDisplay() {
     let displayTime;
     let progressTime;
 
-    if (isAd) {
+    // isCountingDown の状態は viewer.js には直接伝わらないため、
+    // isPlaying が false かつ currentTime が非常に小さい場合にカウントダウンとみなす
+    // または、専用のフラグをFirebase経由で送る必要がある。
+    // ここでは timer.js のロジックに近づけるため、isPlayingがfalseで、
+    // かつ adBreakInProgress も false の場合にカウントダウンと仮定する。
+    // ただし、正確なカウントダウンは timer.js 側で処理されるべきなので、
+    // viewer.js では再生が止まっている状態を「カウントダウン中」として表現する。
+    const isCountingDown = !isPlaying && !isAd && (currentTime === 0 || duration === 0); 
+    let countdownEndTime = 0; // viewer.jsでは使用しないが、timer.jsとの整合性のため定義
+
+    if (isCountingDown) {
+        // timer.jsでは -delay で表示されるため、それに合わせる
+        // ただし、viewer.jsではdelayの値が直接わからないため、
+        // isPlayingがfalseの場合にのみ、タイトルとタイマーを更新する
+        // ここでは、タイマーが停止していることを示す表示にする
+        titleDisplay.textContent = title || '接続待機中...';
+        timerDisplay.textContent = '--:--:--';
+        timerDisplay.style.color = currentSettings.countdownColor; // カウントダウン色を適用
+        progressContainer.style.display = 'none';
+        return; // カウントダウン中の場合はプログレスバーの更新をスキップ
+    } else if (isAd) {
         displayTime = -(adRemainingTime - elapsedTime);
         progressTime = currentTime + elapsedTime;
     } else {
@@ -172,25 +209,38 @@ function updateDisplay() {
     }
 
     // オフセット適用
-    if (displayTime >= 0 && !isAd) {
+    if (displayTime >= 0 && !isAd) { // 広告再生中はオフセットを適用しない
         const offset = parseFloat(currentSettings.timerOffset) || 0;
         displayTime += offset;
-        progressTime += offset;
+        progressTime += offset; // プログレスバーにもオフセットを適用
     }
 
     // UI更新
     titleDisplay.style.display = currentSettings.titleVisible ? 'block' : 'none';
-    titleDisplay.textContent = title || 'タイトルなし';
+    titleDisplay.textContent = title || 'タイトル取得中...';
     
-    timerDisplay.style.color = displayTime < 0 ? currentSettings.countdownColor : (isAd ? currentSettings.adTimerColor : currentSettings.timerColor);
+    const isFinalTimeNegative = displayTime < 0;
+    
+    // 広告再生中か、カウントダウン中かでタイマーの色を決定
+    if (isAd) {
+        timerDisplay.style.color = currentSettings.adTimerColor;
+    } else {
+        // isCountingDown のロジックは上記で処理済みのため、ここでは isFinalTimeNegative のみ考慮
+        timerDisplay.style.color = isFinalTimeNegative ? currentSettings.countdownColor : currentSettings.timerColor;
+    }
+
     timerDisplay.textContent = formatTime(displayTime, duration);
 
     // プログレスバー更新
     const showProgressBar = currentSettings.progressBarVisible;
     progressContainer.style.display = showProgressBar ? 'block' : 'none';
     if (showProgressBar) {
+        // Amazon Prime Videoの広告再生中のみプログレスを100%に、それ以外は通常通り計算
         const isAmazonAd = isAd && videoState.source && videoState.source.includes('amazon');
-        const progress = isAmazonAd ? 100 : (duration > 0 && progressTime >= 0) ? Math.min((progressTime / duration) * 100, 100) : 0;
+        const progress = isAmazonAd
+            ? 100
+            : (duration > 0 && progressTime >= 0) ? Math.min((progressTime / duration) * 100, 100) : 0;
+        
         progressBar.style.width = `${progress}%`;
 
         progressBar.style.backgroundColor = '';
@@ -200,8 +250,10 @@ function updateDisplay() {
         if (currentSettings.rainbowEffect) {
             progressBar.classList.add('rainbow-animate');
         } else if (currentSettings.gradientEnabled && progressTime >= 0) {
+            // グラデーション計算にも progressTime を使用
             const progressFactor = progressTime / duration;
-            progressBar.style.backgroundColor = interpolateColor(currentSettings.progressBarColor, currentSettings.gradientEndColor, progressFactor);
+            const newColor = interpolateColor(currentSettings.progressBarColor, currentSettings.gradientEndColor, progressFactor);
+            progressBar.style.backgroundColor = newColor;
         } else {
             progressBar.style.backgroundColor = currentSettings.progressBarColor;
         }
