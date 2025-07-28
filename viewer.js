@@ -42,28 +42,21 @@ function initialize() {
         const db = getDatabase(firebaseApp);
         const dbRef = ref(db, `timers/${sessionId}`);
 
-        // ▼▼▼ ここから変更 ▼▼▼
-        // データの変更をリッスン
         onValue(dbRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
-                // データが存在すれば、最新のデータとして保持
                 latestData = data;
                 if (data.designSettings) {
                     applySettings(data.designSettings);
                 }
             } else {
-                // データが存在しない場合 (接続が切れた、など)
                 if (latestData && latestData.videoState) {
-                    // 以前のデータがあれば、再生状態を false にしてタイマーを停止
                     latestData.videoState.isPlaying = false;
                 } else {
-                    // 以前のデータがなければエラー表示
                     displayError("拡張機能との接続が切れました。");
                 }
             }
         });
-        // ▲▲▲ ここまで変更 ▲▲▲
 
         // アニメーションループを開始
         animationLoop();
@@ -94,7 +87,7 @@ function applySettings(settings) {
     titleDisplay.style.color = settings.titleColor;
     titleDisplay.style.fontSize = `${settings.titleSize}px`;
     timerDisplay.style.fontFamily = settings.timerFont;
-    timerDisplay.style.fontWeight = settings.timerWeight;
+    timerDisplay.style.fontWeight = settings.fontWeight;
     timerDisplay.style.color = settings.timerColor;
     timerDisplay.style.fontSize = `${settings.timerSize}px`;
     const shadow = settings.shadowVisible ? `2px 2px ${settings.shadowBlur}px ${settings.shadowColor}` : 'none';
@@ -153,7 +146,7 @@ function interpolateColor(color1, color2, factor) {
     return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 }
 
-// 表示を更新するメインの関数 (変更なし)
+// 表示を更新するメインの関数
 function updateDisplay() {
     if (!latestData || !latestData.videoState || !currentSettings) {
         return;
@@ -186,7 +179,16 @@ function updateDisplay() {
     titleDisplay.style.display = currentSettings.titleVisible ? 'block' : 'none';
     titleDisplay.textContent = title || 'タイトルなし';
     
-    timerDisplay.style.color = displayTime < 0 ? currentSettings.countdownColor : (isAd ? currentSettings.adTimerColor : currentSettings.timerColor);
+    // ▼▼▼ ここから変更 ▼▼▼
+    // 広告再生中かどうかを先に判定し、タイマーの色を正しく設定する
+    if (isAd) {
+        timerDisplay.style.color = currentSettings.adTimerColor;
+    } else {
+        // 広告でない場合、カウントダウン中（時間がマイナス）かどうかを判定
+        timerDisplay.style.color = displayTime < 0 ? currentSettings.countdownColor : currentSettings.timerColor;
+    }
+    // ▲▲▲ ここまで変更 ▲▲▲
+    
     timerDisplay.textContent = formatTime(displayTime, duration);
 
     // プログレスバー更新
