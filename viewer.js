@@ -2,11 +2,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
 import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
 
-// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-// ★ 開発者様へ: ご自身のFirebaseプロジェクトの設定情報に書き換えてください ★
-// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+// Firebaseプロジェクト設定
 const firebaseConfig = {
-  // ユーザーから提供されたFirebaseプロジェクト設定
   apiKey: "AIzaSyB1Cht_x003ZMPdZQRBddjnP2dbqWLbKPM",
   authDomain: "mobi-69fb2.firebaseapp.com",
   databaseURL: "https://mobi-69fb2-default-rtdb.firebaseio.com",
@@ -45,21 +42,26 @@ function initialize() {
         const db = getDatabase(firebaseApp);
         const dbRef = ref(db, `timers/${sessionId}`);
 
-        // ▼▼▼ ここから変更 ▼▼▼
+        // ★★★ ここから変更 ★★★
         // データの変更をリッスン
         onValue(dbRef, (snapshot) => {
             const data = snapshot.val();
-            // Firebaseから有効なデータを受け取った場合のみ、ローカルのデータを更新する
-            // これにより、データが削除された(nullになった)場合でも、
-            // 最後に受信したデータを保持し、表示が固まるようになる
             if (data) {
+                // データが有効な場合は、最新データとして保持します。
                 latestData = data;
                 if (data.designSettings) {
                     applySettings(data.designSettings);
                 }
+            } else {
+                // データがnullになった場合 (同期タブが閉じられ、代替が見つからなかった場合など)
+                // 最後に受信したデータを保持し、再生状態だけを「停止」に変更します。
+                // これにより、表示がフリーズします。
+                if (latestData && latestData.videoState) {
+                    latestData.videoState.isPlaying = false;
+                }
             }
         });
-        // ▲▲▲ ここまで変更 ▲▲▲
+        // ★★★ ここまで変更 ★★★
 
         // アニメーションループを開始
         animationLoop();
@@ -149,22 +151,21 @@ function interpolateColor(color1, color2, factor) {
     return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 }
 
-// 表示を更新するメインの関数 (変更なし)
+// ★★★ ここから変更 ★★★
+// 表示を更新するメインの関数
 function updateDisplay() {
+    // 最後に受信したデータがなければ、処理を中断します。
     if (!latestData || !latestData.videoState || !currentSettings) {
-        // 接続が切れてもlatestDataが残っていれば表示を続ける
-        if (latestData && latestData.videoState) {
-            // isPlayingをfalseとして描画を続ける
-            latestData.videoState.isPlaying = false;
-        } else {
-            return;
-        }
+        return;
     }
 
     const { videoState } = latestData;
     const { duration, isAd, adRemainingTime, isPlaying, lastUpdated, currentTime, title } = videoState;
     
+    // isPlayingがtrueの場合のみ、最後の更新からの経過時間を計算します。
+    // isPlayingがfalse（停止中または接続切れ）の場合、elapsedTimeは0になり、時間が進みません。
     const elapsedTime = isPlaying ? (Date.now() - lastUpdated) / 1000 : 0;
+    
     let displayTime;
     let progressTime;
 
@@ -210,6 +211,7 @@ function updateDisplay() {
         progressBar.classList.toggle('sparkle', currentSettings.gradientSparkle);
     }
 }
+// ★★★ ここまで変更 ★★★
 
 // アニメーションループ (変更なし)
 function animationLoop() {
