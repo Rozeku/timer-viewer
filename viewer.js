@@ -2,7 +2,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
 import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
 
-// Firebaseプロジェクト設定
 const firebaseConfig = {
   apiKey: "AIzaSyB1Cht_x003ZMPdZQRBddjnP2dbqWLbKPM",
   authDomain: "mobi-69fb2.firebaseapp.com",
@@ -46,19 +45,16 @@ function initialize() {
             const data = snapshot.val();
             if (data) {
                 latestData = data;
+                // designSettingsが存在すれば、まず適用する
                 if (data.designSettings) {
                     applySettings(data.designSettings);
                 }
             } else {
-                if (latestData && latestData.videoState) {
-                    latestData.videoState.isPlaying = false;
-                } else {
-                    displayError("拡張機能との接続が切れました。");
-                }
+                latestData = null;
+                displayError("拡張機能との接続が切れました。");
             }
         });
 
-        // アニメーションループを開始
         animationLoop();
 
     } catch (e) {
@@ -67,7 +63,7 @@ function initialize() {
     }
 }
 
-// エラーメッセージを表示する関数 (変更なし)
+// エラーメッセージを表示する関数
 function displayError(message) {
     titleDisplay.textContent = "エラー";
     timerDisplay.textContent = message;
@@ -78,7 +74,7 @@ function displayError(message) {
     }
 }
 
-// デザイン設定を適用する関数 (変更なし)
+// デザイン設定を適用する関数
 function applySettings(settings) {
     currentSettings = settings;
     container.style.backgroundColor = settings.bgColor;
@@ -87,7 +83,7 @@ function applySettings(settings) {
     titleDisplay.style.color = settings.titleColor;
     titleDisplay.style.fontSize = `${settings.titleSize}px`;
     timerDisplay.style.fontFamily = settings.timerFont;
-    timerDisplay.style.fontWeight = settings.fontWeight;
+    timerDisplay.style.fontWeight = settings.timerWeight;
     timerDisplay.style.color = settings.timerColor;
     timerDisplay.style.fontSize = `${settings.timerSize}px`;
     const shadow = settings.shadowVisible ? `2px 2px ${settings.shadowBlur}px ${settings.shadowColor}` : 'none';
@@ -96,7 +92,7 @@ function applySettings(settings) {
     progressContainer.style.height = `${settings.progressBarHeight}px`;
 }
 
-// 時間をフォーマットする関数 (変更なし)
+// 時間をフォーマットする関数
 function formatTime(totalSeconds, duration) {
     const isNegative = totalSeconds < 0;
     let displaySeconds = totalSeconds;
@@ -131,7 +127,7 @@ function formatTime(totalSeconds, duration) {
     return timeString;
 }
 
-// 色を補間する関数 (変更なし)
+// 色を補間する関数
 function interpolateColor(color1, color2, factor) {
     factor = Math.max(0, Math.min(1, factor));
     const r1 = parseInt(color1.substring(1, 3), 16);
@@ -153,10 +149,10 @@ function updateDisplay() {
     }
 
     const { videoState } = latestData;
-    const { duration, isAd, adRemainingTime, isPlaying, lastUpdated, currentTime, title } = videoState;
+    const { duration, isAd, adRemainingTime, isPlaying, lastUpdated, currentTime, title, seriesTitle, episodeInfo, episodeTitle, source } = videoState;
     
     // 時間の補間
-    const elapsedTime = isPlaying ? (Date.now() - lastUpdated) / 1000 : 0;
+    const elapsedTime = isPlaying ? (Date.now() - (lastUpdated || Date.now())) / 1000 : 0;
     let displayTime;
     let progressTime;
 
@@ -175,20 +171,33 @@ function updateDisplay() {
         progressTime += offset;
     }
 
+    // ▼▼▼ ここから変更 ▼▼▼
     // UI更新
     titleDisplay.style.display = currentSettings.titleVisible ? 'block' : 'none';
-    titleDisplay.textContent = title || 'タイトルなし';
-    
-    // ▼▼▼ ここから変更 ▼▼▼
-    // 広告再生中かどうかを先に判定し、タイマーの色を正しく設定する
-    if (isAd) {
-        timerDisplay.style.color = currentSettings.adTimerColor;
-    } else {
-        // 広告でない場合、カウントダウン中（時間がマイナス）かどうかを判定
-        timerDisplay.style.color = displayTime < 0 ? currentSettings.countdownColor : currentSettings.timerColor;
+    let finalTitle = title || 'タイトルなし';
+
+    // Netflixの場合、設定に基づいてタイトルを組み立てる
+    if (source?.includes('www.netflix.com')) {
+        const parts = [];
+        if (currentSettings.netflixShowSeriesTitle && seriesTitle) {
+            parts.push(seriesTitle);
+        }
+        if (currentSettings.netflixShowEpisodeInfo && episodeInfo) {
+            parts.push(episodeInfo);
+        }
+        if (currentSettings.netflixShowEpisodeSubtitle && episodeTitle) {
+            parts.push(episodeTitle);
+        }
+        if (parts.length > 0) {
+            finalTitle = parts.join(' ');
+        } else {
+            finalTitle = '（タイトル非表示）';
+        }
     }
+    titleDisplay.textContent = finalTitle;
     // ▲▲▲ ここまで変更 ▲▲▲
     
+    timerDisplay.style.color = displayTime < 0 ? currentSettings.countdownColor : (isAd ? currentSettings.adTimerColor : currentSettings.timerColor);
     timerDisplay.textContent = formatTime(displayTime, duration);
 
     // プログレスバー更新
@@ -215,7 +224,7 @@ function updateDisplay() {
     }
 }
 
-// アニメーションループ (変更なし)
+// アニメーションループ
 function animationLoop() {
     updateDisplay();
     animationFrameId = requestAnimationFrame(animationLoop);
