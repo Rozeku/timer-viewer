@@ -2,11 +2,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
 import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
 
-// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-// ★ 開発者様へ: ご自身のFirebaseプロジェクトの設定情報に書き換えてください ★
-// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+// Firebaseプロジェクト設定
 const firebaseConfig = {
-  // ユーザーから提供されたFirebaseプロジェクト設定
   apiKey: "AIzaSyB1Cht_x003ZMPdZQRBddjnP2dbqWLbKPM",
   authDomain: "mobi-69fb2.firebaseapp.com",
   databaseURL: "https://mobi-69fb2-default-rtdb.firebaseio.com",
@@ -35,31 +32,38 @@ function initialize() {
     const urlParams = new URLSearchParams(window.location.search);
     const sessionId = urlParams.get('id');
 
-    // URLからconfigパラメータを削除し、sessionIdのみを必須とする
     if (!sessionId) {
         displayError("連携IDがURLに含まれていません。OBS用のURLを再生成してください。");
         return;
     }
 
     try {
-        // ハードコードされた設定でFirebaseを初期化
         const firebaseApp = initializeApp(firebaseConfig);
         const db = getDatabase(firebaseApp);
         const dbRef = ref(db, `timers/${sessionId}`);
 
+        // ▼▼▼ ここから変更 ▼▼▼
         // データの変更をリッスン
         onValue(dbRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
+                // データが存在すれば、最新のデータとして保持
                 latestData = data;
                 if (data.designSettings) {
                     applySettings(data.designSettings);
                 }
             } else {
-                latestData = null;
-                displayError("拡張機能との接続が切れました。");
+                // データが存在しない場合 (接続が切れた、など)
+                if (latestData && latestData.videoState) {
+                    // 以前のデータがあれば、再生状態を false にしてタイマーを停止
+                    latestData.videoState.isPlaying = false;
+                } else {
+                    // 以前のデータがなければエラー表示
+                    displayError("拡張機能との接続が切れました。");
+                }
             }
         });
+        // ▲▲▲ ここまで変更 ▲▲▲
 
         // アニメーションループを開始
         animationLoop();
@@ -70,7 +74,7 @@ function initialize() {
     }
 }
 
-// エラーメッセージを表示する関数
+// エラーメッセージを表示する関数 (変更なし)
 function displayError(message) {
     titleDisplay.textContent = "エラー";
     timerDisplay.textContent = message;
@@ -81,7 +85,7 @@ function displayError(message) {
     }
 }
 
-// デザイン設定を適用する関数
+// デザイン設定を適用する関数 (変更なし)
 function applySettings(settings) {
     currentSettings = settings;
     container.style.backgroundColor = settings.bgColor;
@@ -99,7 +103,7 @@ function applySettings(settings) {
     progressContainer.style.height = `${settings.progressBarHeight}px`;
 }
 
-// 時間をフォーマットする関数
+// 時間をフォーマットする関数 (変更なし)
 function formatTime(totalSeconds, duration) {
     const isNegative = totalSeconds < 0;
     let displaySeconds = totalSeconds;
@@ -134,7 +138,7 @@ function formatTime(totalSeconds, duration) {
     return timeString;
 }
 
-// 色を補間する関数
+// 色を補間する関数 (変更なし)
 function interpolateColor(color1, color2, factor) {
     factor = Math.max(0, Math.min(1, factor));
     const r1 = parseInt(color1.substring(1, 3), 16);
@@ -149,7 +153,7 @@ function interpolateColor(color1, color2, factor) {
     return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 }
 
-// 表示を更新するメインの関数
+// 表示を更新するメインの関数 (変更なし)
 function updateDisplay() {
     if (!latestData || !latestData.videoState || !currentSettings) {
         return;
@@ -209,7 +213,7 @@ function updateDisplay() {
     }
 }
 
-// アニメーションループ
+// アニメーションループ (変更なし)
 function animationLoop() {
     updateDisplay();
     animationFrameId = requestAnimationFrame(animationLoop);
