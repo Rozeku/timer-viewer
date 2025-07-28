@@ -35,12 +35,14 @@ function initialize() {
     const urlParams = new URLSearchParams(window.location.search);
     const sessionId = urlParams.get('id');
 
+    // URLからconfigパラメータを削除し、sessionIdのみを必須とする
     if (!sessionId) {
         displayError("連携IDがURLに含まれていません。OBS用のURLを再生成してください。");
         return;
     }
 
     try {
+        // ハードコードされた設定でFirebaseを初期化
         const firebaseApp = initializeApp(firebaseConfig);
         const db = getDatabase(firebaseApp);
         const dbRef = ref(db, `timers/${sessionId}`);
@@ -49,20 +51,13 @@ function initialize() {
         onValue(dbRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
-                // データを受信したら、最新情報として保持
                 latestData = data;
                 if (data.designSettings) {
                     applySettings(data.designSettings);
                 }
             } else {
-                // データがnullになった場合（接続断など）でも、最後の状態で表示を静止させる
-                if (latestData && latestData.videoState) {
-                    // 最後に受信したデータの再生状態をfalseにして、タイマーの進行を止める
-                    latestData.videoState.isPlaying = false;
-                } else {
-                    // まだ一度もデータを受信していない場合はエラーを表示
-                    displayError("拡張機能との接続が切れました。");
-                }
+                latestData = null;
+                displayError("拡張機能との接続が切れました。");
             }
         });
 
