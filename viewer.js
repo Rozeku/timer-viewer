@@ -45,7 +45,6 @@ function initialize() {
             const data = snapshot.val();
             if (data) {
                 latestData = data;
-                // designSettingsが存在すれば、まず適用する
                 if (data.designSettings) {
                     applySettings(data.designSettings);
                 }
@@ -145,13 +144,16 @@ function interpolateColor(color1, color2, factor) {
 // 表示を更新するメインの関数
 function updateDisplay() {
     if (!latestData || !latestData.videoState || !currentSettings) {
+        if (!latestData) {
+            titleDisplay.textContent = "接続待機中...";
+            titleDisplay.style.display = 'block';
+        }
         return;
     }
 
     const { videoState } = latestData;
     const { duration, isAd, adRemainingTime, isPlaying, lastUpdated, currentTime, title, seriesTitle, episodeInfo, episodeTitle, source } = videoState;
     
-    // 時間の補間
     const elapsedTime = isPlaying ? (Date.now() - (lastUpdated || Date.now())) / 1000 : 0;
     let displayTime;
     let progressTime;
@@ -164,7 +166,6 @@ function updateDisplay() {
         progressTime = displayTime;
     }
 
-    // オフセット適用
     if (displayTime >= 0 && !isAd) {
         const offset = parseFloat(currentSettings.timerOffset) || 0;
         displayTime += offset;
@@ -172,35 +173,42 @@ function updateDisplay() {
     }
 
     // ▼▼▼ ここから変更 ▼▼▼
-    // UI更新
-    titleDisplay.style.display = currentSettings.titleVisible ? 'block' : 'none';
-    let finalTitle = title || 'タイトルなし';
-
-    // Netflixの場合、設定に基づいてタイトルを組み立てる
-    if (source?.includes('www.netflix.com')) {
-        const parts = [];
-        if (currentSettings.netflixShowSeriesTitle && seriesTitle) {
-            parts.push(seriesTitle);
-        }
-        if (currentSettings.netflixShowEpisodeInfo && episodeInfo) {
-            parts.push(episodeInfo);
-        }
-        if (currentSettings.netflixShowEpisodeSubtitle && episodeTitle) {
-            parts.push(episodeTitle);
-        }
-        if (parts.length > 0) {
-            finalTitle = parts.join(' ');
+    // --- Title Display & Layout Logic ---
+    let finalTitle = '';
+    // グローバルな表示設定を確認
+    if (currentSettings.titleVisible) {
+        // Netflixの場合、設定に基づいてタイトルを組み立てる
+        if (source?.includes('www.netflix.com')) {
+            const parts = [];
+            if (currentSettings.netflixShowSeriesTitle && seriesTitle) {
+                parts.push(seriesTitle);
+            }
+            if (currentSettings.netflixShowEpisodeInfo && episodeInfo) {
+                parts.push(episodeInfo);
+            }
+            if (currentSettings.netflixShowEpisodeSubtitle && episodeTitle) {
+                parts.push(episodeTitle);
+            }
+            finalTitle = parts.join(' ').trim();
         } else {
-            finalTitle = '（タイトル非表示）';
+            // 他のサイトの場合
+            finalTitle = title || '';
         }
     }
-    titleDisplay.textContent = finalTitle;
+
+    // タイトルが空でない場合のみ表示し、それ以外は非表示にする
+    if (finalTitle) {
+        titleDisplay.textContent = finalTitle;
+        titleDisplay.style.display = 'block';
+    } else {
+        titleDisplay.textContent = '';
+        titleDisplay.style.display = 'none';
+    }
     // ▲▲▲ ここまで変更 ▲▲▲
     
     timerDisplay.style.color = displayTime < 0 ? currentSettings.countdownColor : (isAd ? currentSettings.adTimerColor : currentSettings.timerColor);
     timerDisplay.textContent = formatTime(displayTime, duration);
 
-    // プログレスバー更新
     const showProgressBar = currentSettings.progressBarVisible;
     progressContainer.style.display = showProgressBar ? 'block' : 'none';
     if (showProgressBar) {
