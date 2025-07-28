@@ -35,31 +35,31 @@ function initialize() {
     const urlParams = new URLSearchParams(window.location.search);
     const sessionId = urlParams.get('id');
 
-    // URLからconfigパラメータを削除し、sessionIdのみを必須とする
     if (!sessionId) {
         displayError("連携IDがURLに含まれていません。OBS用のURLを再生成してください。");
         return;
     }
 
     try {
-        // ハードコードされた設定でFirebaseを初期化
         const firebaseApp = initializeApp(firebaseConfig);
         const db = getDatabase(firebaseApp);
         const dbRef = ref(db, `timers/${sessionId}`);
 
+        // ▼▼▼ ここから変更 ▼▼▼
         // データの変更をリッスン
         onValue(dbRef, (snapshot) => {
             const data = snapshot.val();
+            // Firebaseから有効なデータを受け取った場合のみ、ローカルのデータを更新する
+            // これにより、データが削除された(nullになった)場合でも、
+            // 最後に受信したデータを保持し、表示が固まるようになる
             if (data) {
                 latestData = data;
                 if (data.designSettings) {
                     applySettings(data.designSettings);
                 }
-            } else {
-                latestData = null;
-                displayError("拡張機能との接続が切れました。");
             }
         });
+        // ▲▲▲ ここまで変更 ▲▲▲
 
         // アニメーションループを開始
         animationLoop();
@@ -70,7 +70,7 @@ function initialize() {
     }
 }
 
-// エラーメッセージを表示する関数
+// エラーメッセージを表示する関数 (変更なし)
 function displayError(message) {
     titleDisplay.textContent = "エラー";
     timerDisplay.textContent = message;
@@ -81,7 +81,7 @@ function displayError(message) {
     }
 }
 
-// デザイン設定を適用する関数
+// デザイン設定を適用する関数 (変更なし)
 function applySettings(settings) {
     currentSettings = settings;
     container.style.backgroundColor = settings.bgColor;
@@ -99,7 +99,7 @@ function applySettings(settings) {
     progressContainer.style.height = `${settings.progressBarHeight}px`;
 }
 
-// 時間をフォーマットする関数
+// 時間をフォーマットする関数 (変更なし)
 function formatTime(totalSeconds, duration) {
     const isNegative = totalSeconds < 0;
     let displaySeconds = totalSeconds;
@@ -134,7 +134,7 @@ function formatTime(totalSeconds, duration) {
     return timeString;
 }
 
-// 色を補間する関数
+// 色を補間する関数 (変更なし)
 function interpolateColor(color1, color2, factor) {
     factor = Math.max(0, Math.min(1, factor));
     const r1 = parseInt(color1.substring(1, 3), 16);
@@ -149,16 +149,21 @@ function interpolateColor(color1, color2, factor) {
     return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 }
 
-// 表示を更新するメインの関数
+// 表示を更新するメインの関数 (変更なし)
 function updateDisplay() {
     if (!latestData || !latestData.videoState || !currentSettings) {
-        return;
+        // 接続が切れてもlatestDataが残っていれば表示を続ける
+        if (latestData && latestData.videoState) {
+            // isPlayingをfalseとして描画を続ける
+            latestData.videoState.isPlaying = false;
+        } else {
+            return;
+        }
     }
 
     const { videoState } = latestData;
     const { duration, isAd, adRemainingTime, isPlaying, lastUpdated, currentTime, title } = videoState;
     
-    // 時間の補間
     const elapsedTime = isPlaying ? (Date.now() - lastUpdated) / 1000 : 0;
     let displayTime;
     let progressTime;
@@ -171,21 +176,18 @@ function updateDisplay() {
         progressTime = displayTime;
     }
 
-    // オフセット適用
     if (displayTime >= 0 && !isAd) {
         const offset = parseFloat(currentSettings.timerOffset) || 0;
         displayTime += offset;
         progressTime += offset;
     }
 
-    // UI更新
     titleDisplay.style.display = currentSettings.titleVisible ? 'block' : 'none';
     titleDisplay.textContent = title || 'タイトルなし';
     
     timerDisplay.style.color = displayTime < 0 ? currentSettings.countdownColor : (isAd ? currentSettings.adTimerColor : currentSettings.timerColor);
     timerDisplay.textContent = formatTime(displayTime, duration);
 
-    // プログレスバー更新
     const showProgressBar = currentSettings.progressBarVisible;
     progressContainer.style.display = showProgressBar ? 'block' : 'none';
     if (showProgressBar) {
@@ -209,7 +211,7 @@ function updateDisplay() {
     }
 }
 
-// アニメーションループ
+// アニメーションループ (変更なし)
 function animationLoop() {
     updateDisplay();
     animationFrameId = requestAnimationFrame(animationLoop);
