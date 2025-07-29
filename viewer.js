@@ -25,6 +25,7 @@ const container = document.body;
 let latestData = null; // Firebaseから取得した最新のデータ
 let currentSettings = {}; // 現在適用されているデザイン設定
 let animationFrameId = null; // アニメーションフレームID
+let lastKnownTitle = '接続待機中...'; // 最後に表示したタイトルを保持する変数
 
 // --- 初期化処理 ---
 function initialize() {
@@ -145,6 +146,7 @@ function interpolateColor(color1, color2, factor) {
 // 表示を更新するメインの関数
 function updateDisplay() {
     if (!latestData || !latestData.videoState || !currentSettings) {
+        titleDisplay.textContent = lastKnownTitle;
         return;
     }
 
@@ -174,7 +176,7 @@ function updateDisplay() {
     // ▼▼▼ ここから変更 ▼▼▼
     // --- タイトル表示ロジック ---
     const isTitleSettingEnabled = currentSettings.titleVisible;
-    let finalTitle = '';
+    let newTitle = '';
 
     // Netflixの場合、設定に基づいてタイトルを組み立てる
     if (source?.includes('www.netflix.com')) {
@@ -182,15 +184,20 @@ function updateDisplay() {
         if (currentSettings.netflixShowSeriesTitle && seriesTitle) parts.push(seriesTitle);
         if (currentSettings.netflixShowEpisodeInfo && episodeInfo) parts.push(episodeInfo);
         if (currentSettings.netflixShowEpisodeSubtitle && episodeTitle) parts.push(episodeTitle);
-        finalTitle = parts.join(' ');
+        newTitle = parts.join(' ');
     } else {
         // 他のサイトの場合
-        finalTitle = title || '';
+        newTitle = title || '';
     }
 
+    // 新しいタイトルが空でなければ、最後に表示したタイトルを更新
+    if (newTitle.trim() !== '') {
+        lastKnownTitle = newTitle;
+    }
+    
     // 最終的な表示を決定
-    if (isTitleSettingEnabled && finalTitle.trim() !== '') {
-        titleDisplay.textContent = finalTitle;
+    if (isTitleSettingEnabled && lastKnownTitle.trim() !== '') {
+        titleDisplay.textContent = lastKnownTitle;
         titleDisplay.style.display = 'block';
     } else {
         titleDisplay.textContent = '';
