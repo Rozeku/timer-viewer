@@ -25,7 +25,6 @@ const container = document.body;
 let latestData = null; // Firebaseから取得した最新のデータ
 let currentSettings = {}; // 現在適用されているデザイン設定
 let animationFrameId = null; // アニメーションフレームID
-let lastKnownTitle = '接続待機中...'; // 最後に表示したタイトルを保持する変数
 
 // --- 初期化処理 ---
 function initialize() {
@@ -146,7 +145,6 @@ function interpolateColor(color1, color2, factor) {
 // 表示を更新するメインの関数
 function updateDisplay() {
     if (!latestData || !latestData.videoState || !currentSettings) {
-        titleDisplay.textContent = lastKnownTitle;
         return;
     }
 
@@ -174,35 +172,29 @@ function updateDisplay() {
     }
 
     // ▼▼▼ ここから変更 ▼▼▼
-    // --- タイトル表示ロジック ---
-    const isTitleSettingEnabled = currentSettings.titleVisible;
-    let newTitle = '';
+    // UI更新
+    titleDisplay.style.display = currentSettings.titleVisible ? 'block' : 'none';
+    let finalTitle = title || 'タイトルなし';
 
     // Netflixの場合、設定に基づいてタイトルを組み立てる
     if (source?.includes('www.netflix.com')) {
         const parts = [];
-        if (currentSettings.netflixShowSeriesTitle && seriesTitle) parts.push(seriesTitle);
-        if (currentSettings.netflixShowEpisodeInfo && episodeInfo) parts.push(episodeInfo);
-        if (currentSettings.netflixShowEpisodeSubtitle && episodeTitle) parts.push(episodeTitle);
-        newTitle = parts.join(' ');
-    } else {
-        // 他のサイトの場合
-        newTitle = title || '';
+        if (currentSettings.netflixShowSeriesTitle && seriesTitle) {
+            parts.push(seriesTitle);
+        }
+        if (currentSettings.netflixShowEpisodeInfo && episodeInfo) {
+            parts.push(episodeInfo);
+        }
+        if (currentSettings.netflixShowEpisodeSubtitle && episodeTitle) {
+            parts.push(episodeTitle);
+        }
+        if (parts.length > 0) {
+            finalTitle = parts.join(' ');
+        } else {
+            finalTitle = '（タイトル非表示）';
+        }
     }
-
-    // 新しいタイトルが空でなければ、最後に表示したタイトルを更新
-    if (newTitle.trim() !== '') {
-        lastKnownTitle = newTitle;
-    }
-    
-    // 最終的な表示を決定
-    if (isTitleSettingEnabled && lastKnownTitle.trim() !== '') {
-        titleDisplay.textContent = lastKnownTitle;
-        titleDisplay.style.display = 'block';
-    } else {
-        titleDisplay.textContent = '';
-        titleDisplay.style.display = 'none';
-    }
+    titleDisplay.textContent = finalTitle;
     // ▲▲▲ ここまで変更 ▲▲▲
     
     timerDisplay.style.color = displayTime < 0 ? currentSettings.countdownColor : (isAd ? currentSettings.adTimerColor : currentSettings.timerColor);
