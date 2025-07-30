@@ -145,10 +145,17 @@ function interpolateColor(color1, color2, factor) {
 // 表示を更新するメインの関数
 function updateDisplay() {
     if (!latestData || !latestData.videoState || !currentSettings) {
+        // データがない場合、タイトルを非表示にしておく
+        titleDisplay.style.display = 'none';
         return;
     }
 
-    const { videoState } = latestData;
+    const { videoState, designSettings } = latestData;
+    // designSettings があれば適用する
+    if (designSettings) {
+        applySettings(designSettings);
+    }
+
     const { duration, isAd, adRemainingTime, isPlaying, lastUpdated, currentTime, title, seriesTitle, episodeInfo, episodeTitle, source } = videoState;
     
     // 時間の補間
@@ -173,9 +180,7 @@ function updateDisplay() {
 
     // ▼▼▼ ここから変更 ▼▼▼
     // UI更新
-    titleDisplay.style.display = currentSettings.titleVisible ? 'block' : 'none';
-    let finalTitle = title || 'タイトルなし';
-
+    let finalTitle = ''; // デフォルトを空文字列に
     // Netflixの場合、設定に基づいてタイトルを組み立てる
     if (source?.includes('www.netflix.com')) {
         const parts = [];
@@ -188,12 +193,15 @@ function updateDisplay() {
         if (currentSettings.netflixShowEpisodeSubtitle && episodeTitle) {
             parts.push(episodeTitle);
         }
-        if (parts.length > 0) {
-            finalTitle = parts.join(' ');
-        } else {
-            finalTitle = '（タイトル非表示）';
-        }
+        finalTitle = parts.join(' ');
+    } else {
+        // Netflix以外は元のタイトルを使用
+        finalTitle = title || '';
     }
+
+    // タイトルが空か、設定で非表示の場合は表示しない
+    const isTitleEffectivelyVisible = currentSettings.titleVisible && finalTitle.trim() !== '';
+    titleDisplay.style.display = isTitleEffectivelyVisible ? 'block' : 'none';
     titleDisplay.textContent = finalTitle;
     // ▲▲▲ ここまで変更 ▲▲▲
     
