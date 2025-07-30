@@ -172,30 +172,29 @@ function updateDisplay() {
     }
 
     // ▼▼▼ ここから変更 ▼▼▼
-    // --- タイトル表示ロジック ---
-    const isTitleSettingEnabled = currentSettings.titleVisible;
-    let finalTitle = '';
+    // UI更新
+    titleDisplay.style.display = currentSettings.titleVisible ? 'block' : 'none';
+    let finalTitle = title || 'タイトルなし';
 
     // Netflixの場合、設定に基づいてタイトルを組み立てる
     if (source?.includes('www.netflix.com')) {
         const parts = [];
-        if (currentSettings.netflixShowSeriesTitle && seriesTitle) parts.push(seriesTitle);
-        if (currentSettings.netflixShowEpisodeInfo && episodeInfo) parts.push(episodeInfo);
-        if (currentSettings.netflixShowEpisodeSubtitle && episodeTitle) parts.push(episodeTitle);
-        finalTitle = parts.join(' ');
-    } else {
-        // 他のサイトの場合
-        finalTitle = title || '';
+        if (currentSettings.netflixShowSeriesTitle && seriesTitle) {
+            parts.push(seriesTitle);
+        }
+        if (currentSettings.netflixShowEpisodeInfo && episodeInfo) {
+            parts.push(episodeInfo);
+        }
+        if (currentSettings.netflixShowEpisodeSubtitle && episodeTitle) {
+            parts.push(episodeTitle);
+        }
+        if (parts.length > 0) {
+            finalTitle = parts.join(' ');
+        } else {
+            finalTitle = '（タイトル非表示）';
+        }
     }
-
-    // 最終的な表示を決定
-    if (isTitleSettingEnabled && finalTitle.trim() !== '') {
-        titleDisplay.textContent = finalTitle;
-        titleDisplay.style.display = 'block';
-    } else {
-        titleDisplay.textContent = '';
-        titleDisplay.style.display = 'none';
-    }
+    titleDisplay.textContent = finalTitle;
     // ▲▲▲ ここまで変更 ▲▲▲
     
     timerDisplay.style.color = displayTime < 0 ? currentSettings.countdownColor : (isAd ? currentSettings.adTimerColor : currentSettings.timerColor);
